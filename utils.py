@@ -1,9 +1,6 @@
 import math
 import torch
-import tiktoken
 from dataclasses import dataclass
-
-from gpt2 import GPTCls
 
 def encode_text(texts, tokenizer, max_length):
     n_examples = len(texts)
@@ -46,40 +43,11 @@ def get_schedule(step, schelude_steps, init_value, final_value, warmup_steps):
     assert 0 <= ratio <= 1
     coeff = 0.5 * (1.0 + math.cos(math.pi * ratio))  # coeff ranges 0..1
     return final_value + coeff * (init_value - final_value)
-
-class EmotionDetector():
-    def __init__(self, config):
-        self.config = config
-        self.emotions = ['admiration', 'amusement', 'anger', 'annoyance', 'approval', 'caring', 'confusion', 'curiosity', 'desire', 'disappointment', 'disapproval', 'disgust', 'embarrassment', 'excitement', 'fear', 'gratitude', 'grief', 'joy', 'love', 'nervousness', 'optimism', 'pride', 'realization', 'relief', 'remorse', 'sadness', 'surprise', 'neutral']
-        self.model = GPTCls(config=self.config).to(self.config.device)
-        state_dict = torch.load("goemotion_1.pth", map_location=self.config.device)
-        self.model.backbone.load_state_dict(state_dict['backbone'])
-        self.model.cls_head.load_state_dict(state_dict['cls'])
-        self.tokenizer = tiktoken.get_encoding("gpt2")
-    
-    def inference(self, text, threshold=0.4):
-        self.model.eval()
-        encoded_text = torch.tensor(self.tokenizer.encode(text)).unsqueeze(0).to(self.config.device)
-        print(f'input shape: {encoded_text.shape}')
-        logits = self.model(encoded_text)
-        probs = logits.sigmoid()
-        major_emotion, major_prob = self.emotions[torch.argmax(probs, dim=1).item()], torch.max(probs).item()
-        preds = probs.clone()
-        preds[preds < threshold] = 0
-        preds[preds >= threshold] = 1
-        preds, probs = preds.squeeze(0), probs.squeeze(0)
-        all_emotions = {}
-        for i, each_prob in enumerate(preds):
-            if each_prob == 1:
-                all_emotions[self.emotions[i]] = round(probs[i].item(), 4)
-        all_emotions = sorted(all_emotions.items(), key=lambda x:x[1], reverse=True)
-        print(f"all emotions: {all_emotions}, major emotion: {major_emotion}, major prob: {major_prob:.4f}")
-        return all_emotions, major_emotion, major_prob
     
 @ dataclass
 class GoEmotionConfig:
     pretrained:str = 'gpt2-large'
-    ckpt:str = None
+    ckpt:str = "goemotion_1.pth"
     cls_size: int = 28
     is_causal: bool = True
     is_pad_mask: bool = False

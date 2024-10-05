@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import math
+import tiktoken
 from torch import nn
 
 from utils import GoEmotionConfig
@@ -233,9 +234,11 @@ class GPTCls(nn.Module):
             self.backbone = from_pretrained(config.pretrained, override_args={"dropout": config.dropout})
         else:
             self.backbone = GPT(config)
-        if config.ckpt is not None:
-            self.backbone.load_state_dict(torch.load(config.ckpt)["backbone"])
         self.cls_head = nn.Linear(self.backbone.config.n_embd, config.cls_size, bias=False) if config.cls_size !=0 else nn.Identity()
+        if config.ckpt is not None:
+            state_dict = torch.load(config.ckpt, map_location=self.config.device)
+            self.backbone.load_state_dict(state_dict=state_dict['backbone'])
+            self.cls_head.load_state_dict(state_dict['cls'])
     
     def forward(self, idx, l=None):
         if self.config.is_pad_mask and l is None:
@@ -243,3 +246,32 @@ class GPTCls(nn.Module):
         x = self.backbone.forward_feature(idx, l)
         x = self.cls_head(x.mean(dim=1))
         return x
+    
+class EmotionDetector():
+    def __init__(self, config):
+        self.config = config
+        self.emotions = ['admiration', 'amusement', 'anger', 'annoyance', 'approval', 'caring', 'confusion', 'curiosity', 'desire', 'disappointment', 'disapproval', 'disgust', 'embarrassment', 'excitement', 'fear', 'gratitude', 'grief', 'joy', 'love', 'nervousness', 'optimism', 'pride', 'realization', 'relief', 'remorse', 'sadness', 'surprise', 'neutral']
+        self.model = GPTCls(config=self.config).to(self.config.device)
+        state_dict = torch.load(config.ckpt, map_location=self.config.device)
+        self.model.backbone.load_state_dict(state_dict['backbone'])
+        self.model.cls_head.load_state_dict(state_dict['cls'])
+        self.tokenizer = tiktoken.get_encoding("gpt2")
+    
+    def inference(self, text, threshold=0.4):
+        self.model.eval()
+        encoded_text = torch.tensor(self.tokenizer.encode(text)).unsqueeze(0).to(self.config.device)
+        print(f'input shape: {encoded_text.shape}')
+        logits = self.model(encoded_text)
+        probs = logits.sigmoid()
+        major_emotion, major_prob = self.emotions[torch.argmax(probs, dim=1).item()], torch.max(probs).item()
+        preds = probs.clone()
+        preds[preds < threshold] = 0
+        preds[preds >= threshold] = 1
+        preds, probs = preds.squeeze(0), probs.squeeze(0)
+        all_emotions = {}
+        for i, each_prob in enumerate(preds):
+            if each_prob == 1:
+                all_emotions[self.emotions[i]] = round(probs[i].item(), 4)
+        all_emotions = sorted(all_emotions.items(), key=lambda x:x[1], reverse=True)
+        print(f"all emotions: {all_emotions}, major emotion: {major_emotion}, major prob: {major_prob:.4f}")
+        return probs
