@@ -3,7 +3,7 @@ import json
 import re
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from yearly_emotion_score_calculator import YearlyEmotionScoreCalculator
+from emotion_score_calculator import EmotionScoreCalculator
 from transformers import GPT2Tokenizer
 
 # Initialize the tokenizer
@@ -15,11 +15,12 @@ def preprocess_lyrics(lyrics):
     lyrics = re.sub(r'[^a-zA-Z0-9\s]', '', lyrics)  # Keep only alphanumeric characters and spaces
     return lyrics.strip()
 
-# Function to split text into chunks based on token limit
+# Function to split text into chunks based on token limit and return each chunk's text and length
 def split_into_chunks(text, max_tokens=1024):
     tokens = tokenizer.encode(text)
     for i in range(0, len(tokens), max_tokens):
-        yield tokenizer.decode(tokens[i:i + max_tokens])
+        chunk_tokens = tokens[i:i + max_tokens]
+        yield tokenizer.decode(chunk_tokens), len(chunk_tokens)
 
 # Load the dataset
 file_path = "./datasets/lyrics_and_years.csv"
@@ -29,7 +30,7 @@ data = pd.read_csv(file_path)
 data = data[(data['year'] >= 1990) & (data['year'] <= 2017)]
 
 # Initialize the emotion score calculator
-calculator = YearlyEmotionScoreCalculator()
+calculator = EmotionScoreCalculator()
 
 # Dictionary to store total emotion scores for each year
 yearly_scores = {}
@@ -45,12 +46,17 @@ for _, row in tqdm(data.iterrows(), total=len(data), desc="Processing songs"):
     
     # Split preprocessed lyrics into manageable chunks
     chunk_scores = []
-    for chunk in split_into_chunks(preprocessed_lyrics):
+    chunk_lengths = []
+    for chunk, length in split_into_chunks(preprocessed_lyrics):
         chunk_score = calculator.calculate_emotion_score(chunk)
         chunk_scores.append(chunk_score)
-    
-    # Average the scores for all chunks to get a final score for the song
-    song_score = sum(chunk_scores) / len(chunk_scores) if chunk_scores else 0
+        chunk_lengths.append(length)
+
+    # Calculate weighted average score for the song based on chunk lengths
+    if chunk_scores:
+        song_score = sum(score * length for score, length in zip(chunk_scores, chunk_lengths)) / sum(chunk_lengths)
+    else:
+        song_score = 0
 
     # Add song's score to the corresponding year
     if year in yearly_scores:

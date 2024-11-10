@@ -2,7 +2,7 @@ import json
 from utils import GoEmotionConfig
 from gpt2 import EmotionDetector
 
-class YearlyEmotionScoreCalculator:
+class EmotionScoreCalculator:
     def __init__(self):
         # Initialize model and config
         self.config = GoEmotionConfig()
@@ -25,6 +25,7 @@ class YearlyEmotionScoreCalculator:
         
         # Initialize the score
         score = 0.0
+        counter = 0
 
         # Calculate the score based on emotion categories
         for i, prob in enumerate(probs_over_all28_emotions):
@@ -32,11 +33,13 @@ class YearlyEmotionScoreCalculator:
 
             if emotion in self.positive_emotions:
                 score += prob.item()  # Positive contribution
+                counter += 1
             elif emotion in self.negative_emotions:
                 score -= prob.item()  # Negative contribution
+                counter += 1
             # Neutral emotions do not affect the score
 
-        return round(score, 4)  # Return rounded score for clarity
+        return round(score, 4) / counter # Return rounded score for clarity
 
 """
 # Usage Example
