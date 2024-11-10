@@ -273,5 +273,5 @@ class EmotionDetector():
             if each_prob == 1:
                 all_emotions[self.emotions[i]] = round(probs[i].item(), 4)
         all_emotions = sorted(all_emotions.items(), key=lambda x:x[1], reverse=True)
-        print(f"all emotions: {all_emotions}, major emotion: {major_emotion}, major prob: {major_prob:.4f}")
+        # print(f"all emotions: {all_emotions}, major emotion: {major_emotion}, major prob: {major_prob:.4f}")
         return probs

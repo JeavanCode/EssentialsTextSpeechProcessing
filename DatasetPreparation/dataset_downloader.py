@@ -11,3 +11,8 @@ print("Path to song dataset files:", path)
 path = kagglehub.dataset_download("bwandowando/spotify-songs-with-attributes-and-lyrics")
 
 print("Path to lyrics dataset files:", path)
+
+# Download mental health dataset
+path = kagglehub.dataset_download("thedevastator/uncover-global-trends-in-mental-health-disorder")
+
+print("Path to mental health dataset files:", path)

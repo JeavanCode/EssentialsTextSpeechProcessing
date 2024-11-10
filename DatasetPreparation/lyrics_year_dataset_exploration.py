@@ -25,7 +25,6 @@ print(f"Number of Columns: {num_columns}")
 
 # Terminal output of this script
 
-
 Dataset Info:
 <class 'pandas.core.frame.DataFrame'>
 RangeIndex: 90647 entries, 0 to 90646
@@ -51,5 +50,4 @@ First 5 Rows:
 
 Number of Rows: 90647
 Number of Columns: 3
-
 """
