@@ -2,3 +2,4 @@ checkpoints/
 goemotion_1.pth
 .DS_Store
 __pycache__
+datasets/
