@@ -1,4 +1,3 @@
-"""
 # This script downloads the datasets that will be used in this project.
 
 import kagglehub
@@ -12,4 +11,3 @@ print("Path to song dataset files:", path)
 path = kagglehub.dataset_download("bwandowando/spotify-songs-with-attributes-and-lyrics")
 
 print("Path to lyrics dataset files:", path)
-"""
