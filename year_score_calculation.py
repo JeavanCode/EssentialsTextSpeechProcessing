@@ -32,8 +32,9 @@ data = data[(data['year'] >= 1990) & (data['year'] <= 2017)]
 # Initialize the emotion score calculator
 calculator = EmotionScoreCalculator()
 
-# Dictionary to store total emotion scores for each year
-yearly_scores = {}
+# Dictionaries to store total positive and negative emotion scores for each year
+yearly_positive_scores = {}
+yearly_negative_scores = {}
 
 # Calculate the emotion score for each song and accumulate by year
 print("Calculating emotion scores for each song...")
@@ -45,47 +46,94 @@ for _, row in tqdm(data.iterrows(), total=len(data), desc="Processing songs"):
     preprocessed_lyrics = preprocess_lyrics(lyrics)
     
     # Split preprocessed lyrics into manageable chunks
-    chunk_scores = []
+    positive_chunk_scores = []
+    negative_chunk_scores = []
     chunk_lengths = []
+    
     for chunk, length in split_into_chunks(preprocessed_lyrics):
-        chunk_score = calculator.calculate_emotion_score(chunk)
-        chunk_scores.append(chunk_score)
+        positive_score, negative_score = calculator.calculate_emotion_score(chunk)
+        positive_chunk_scores.append(positive_score)
+        negative_chunk_scores.append(negative_score)
         chunk_lengths.append(length)
 
-    # Calculate weighted average score for the song based on chunk lengths
-    if chunk_scores:
-        song_score = sum(score * length for score, length in zip(chunk_scores, chunk_lengths)) / sum(chunk_lengths)
+    # Calculate weighted average scores for positive and negative emotions
+    if chunk_lengths:
+        positive_song_score = sum(score * length for score, length in zip(positive_chunk_scores, chunk_lengths)) / sum(chunk_lengths)
+        negative_song_score = sum(score * length for score, length in zip(negative_chunk_scores, chunk_lengths)) / sum(chunk_lengths)
     else:
-        song_score = 0
+        positive_song_score = 0
+        negative_song_score = 0
 
-    # Add song's score to the corresponding year
-    if year in yearly_scores:
-        yearly_scores[year] += song_score
+    # Add song's scores to the corresponding year
+    if year in yearly_positive_scores:
+        yearly_positive_scores[year] += positive_song_score
+        yearly_negative_scores[year] += negative_song_score
     else:
-        yearly_scores[year] = song_score
+        yearly_positive_scores[year] = positive_song_score
+        yearly_negative_scores[year] = negative_song_score
 
 # Normalize yearly scores by the number of songs in each year to get an average
 year_counts = data['year'].value_counts().to_dict()  # Number of songs per year
-average_yearly_scores = {year: yearly_scores[year] / year_counts[year] for year in yearly_scores}
+average_yearly_positive_scores = {year: yearly_positive_scores[year] / year_counts[year] for year in yearly_positive_scores}
+average_yearly_negative_scores = {year: yearly_negative_scores[year] / year_counts[year] for year in yearly_negative_scores}
 
-# Save the results to a JSON file
-output_json_path = "./datasets/yearly_emotion_scores.json"
-with open(output_json_path, 'w') as f:
-    json.dump(average_yearly_scores, f, indent=4)
+# Calculate the overall score as positive score minus negative score
+average_yearly_overall_scores = {year: average_yearly_positive_scores[year] - average_yearly_negative_scores[year] for year in average_yearly_positive_scores}
 
-print(f"Yearly emotion scores saved to {output_json_path}")
+# Sort the years in ascending order for all score dictionaries
+average_yearly_positive_scores = dict(sorted(average_yearly_positive_scores.items()))
+average_yearly_negative_scores = dict(sorted(average_yearly_negative_scores.items()))
+average_yearly_overall_scores = dict(sorted(average_yearly_overall_scores.items()))
 
-# Plotting the scores
+# Save the results to JSON files
+output_positive_json = "./datasets/average_yearly_positive_scores.json"
+output_negative_json = "./datasets/average_yearly_negative_scores.json"
+output_overall_json = "./datasets/average_yearly_overall_scores.json"
+
+with open(output_positive_json, 'w') as f:
+    json.dump(average_yearly_positive_scores, f, indent=4)
+with open(output_negative_json, 'w') as f:
+    json.dump(average_yearly_negative_scores, f, indent=4)
+with open(output_overall_json, 'w') as f:
+    json.dump(average_yearly_overall_scores, f, indent=4)
+
+print(f"Positive scores saved to {output_positive_json}")
+print(f"Negative scores saved to {output_negative_json}")
+print(f"Overall scores saved to {output_overall_json}")
+
+# Plotting each score separately and saving as distinct figures
+# Plot Positive Scores
 plt.figure(figsize=(10, 6))
-plt.plot(list(average_yearly_scores.keys()), list(average_yearly_scores.values()), marker='o', linestyle='-')
+plt.plot(list(average_yearly_positive_scores.keys()), list(average_yearly_positive_scores.values()), marker='o', linestyle='-')
 plt.xlabel('Year')
-plt.ylabel('Average Emotion Score')
-plt.title('Average Emotion Score by Year (1990-2017)')
+plt.ylabel('Average Positive Emotion Score')
+plt.title('Average Positive Emotion Score by Year (1990-2017)')
 plt.grid(True)
-
-# Save the plot
-output_plot_path = "./Figures/yearly_emotion_scores_plot.png"
-plt.savefig(output_plot_path)
+output_positive_plot_path = "./Figures/average_yearly_positive_emotion_scores_plot.png"
+plt.savefig(output_positive_plot_path)
 plt.show()
+print(f"Positive emotion scores plot saved to {output_positive_plot_path}")
 
-print(f"Plot of yearly emotion scores saved to {output_plot_path}")
+# Plot Negative Scores
+plt.figure(figsize=(10, 6))
+plt.plot(list(average_yearly_negative_scores.keys()), list(average_yearly_negative_scores.values()), marker='o', linestyle='-')
+plt.xlabel('Year')
+plt.ylabel('Average Negative Emotion Score')
+plt.title('Average Negative Emotion Score by Year (1990-2017)')
+plt.grid(True)
+output_negative_plot_path = "./Figures/average_yearly_negative_emotion_scores_plot.png"
+plt.savefig(output_negative_plot_path)
+plt.show()
+print(f"Negative emotion scores plot saved to {output_negative_plot_path}")
+
+# Plot Overall Scores
+plt.figure(figsize=(10, 6))
+plt.plot(list(average_yearly_overall_scores.keys()), list(average_yearly_overall_scores.values()), marker='o', linestyle='-')
+plt.xlabel('Year')
+plt.ylabel('Average Overall Emotion Score')
+plt.title('Average Overall Emotion Score by Year (1990-2017)')
+plt.grid(True)
+output_overall_plot_path = "./Figures/average_yearly_overall_emotion_scores_plot.png"
+plt.savefig(output_overall_plot_path)
+plt.show()
+print(f"Overall emotion scores plot saved to {output_overall_plot_path}")

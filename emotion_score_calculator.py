@@ -1,6 +1,7 @@
 import json
 from utils import GoEmotionConfig
 from gpt2 import EmotionDetector
+import math
 
 class EmotionScoreCalculator:
     def __init__(self):
@@ -23,28 +24,36 @@ class EmotionScoreCalculator:
         # Perform inference on the lyrics
         probs_over_all28_emotions = self.detector.inference(lyrics, threshold=0.4)
         
-        # Initialize the score
-        score = 0.0
-        counter = 0
+        # Initialize cumulative scores
+        positive_score = 0.0
+        negative_score = 0.0
 
-        # Calculate the score based on emotion categories
+        # Calculate the score based on emotion categories with weighted contributions
         for i, prob in enumerate(probs_over_all28_emotions):
             emotion = self.emotions[i]  # Map index to emotion name
+            weight = 1.0  # Default weight
+
+            # Assign higher weight for stronger probabilities
+            if prob >= 0.60:
+                weight = 1.50
+
+            elif prob >= 0.50:
+                weight = 1.25
+
+            elif prob >= 0.40:
+                weight = 1.0
+                
+            else:
+                weight = 0.0
 
             if emotion in self.positive_emotions:
-                score += prob.item()  # Positive contribution
-                counter += 1
+                positive_score += prob.item() * weight  # Positive contribution
             elif emotion in self.negative_emotions:
-                score -= prob.item()  # Negative contribution
-                counter += 1
+                negative_score += prob.item() * weight  # Negative contribution
             # Neutral emotions do not affect the score
 
-        return round(score, 4) / counter # Return rounded score for clarity
+        # Apply logarithmic transformation for scaling
+        positive_score = math.log(positive_score + 1)
+        negative_score = math.log(negative_score + 1)
 
-"""
-# Usage Example
-YEARLY_LYRICS = "HERE THE LYRICS OF CORRESPONDING YEAR SHOULD COME"
-calculator = YearlyEmotionScoreCalculator()
-yearly_score = calculator.calculate_emotion_score(YEARLY_LYRICS)
-print(f"Yearly Emotion Score: {yearly_score}")
-"""
+        return round(positive_score, 4), round(negative_score, 4)
